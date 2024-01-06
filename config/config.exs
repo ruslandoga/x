@@ -8,8 +8,10 @@
 import Config
 
 config :x,
-  ecto_repos: [X.Repo],
+  ecto_repos: [X.Repo, X.Ch.Repo],
   generators: [timestamp_type: :utc_datetime]
+
+config :x, X.Ch.Repo, priv: "priv/ch_repo"
 
 # Configures the endpoint
 config :x, XWeb.Endpoint,
