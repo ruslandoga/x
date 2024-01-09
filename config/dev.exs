@@ -5,16 +5,22 @@ config :x, X.Repo,
   username: "postgres",
   password: "postgres",
   hostname: "localhost",
-  database: "x_dev",
+  database: "plausible_dev",
   stacktrace: true,
   show_sensitive_data_on_connection_error: true,
   pool_size: 10
 
 config :x, X.Ch.Repo,
-  url: "http://localhost:8123/x_dev",
+  url: "http://localhost:8123/plausible_events_db",
   stacktrace: true,
   show_sensitive_data_on_connection_error: true,
   pool_size: 10
+
+config :x, X.S3,
+  access_key_id: "minioadmin",
+  secret_access_key: "minioadmin",
+  url: "http://localhost:9000",
+  region: "us-east-1"
 
 # For development, we disable any cache and enable
 # debugging and code reloading.
