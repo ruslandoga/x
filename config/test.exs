@@ -9,8 +9,14 @@ config :x, X.Repo,
   username: "postgres",
   password: "postgres",
   hostname: "localhost",
-  database: "x_test#{System.get_env("MIX_TEST_PARTITION")}",
+  database: "plausible_test",
   pool: Ecto.Adapters.SQL.Sandbox,
+  pool_size: 10
+
+config :x, X.Ch.Repo,
+  url: "http://localhost:8123/plausible_events_db",
+  stacktrace: true,
+  show_sensitive_data_on_connection_error: true,
   pool_size: 10
 
 # We don't run a server during test. If one is required,

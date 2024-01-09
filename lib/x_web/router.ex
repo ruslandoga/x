@@ -18,6 +18,9 @@ defmodule XWeb.Router do
     pipe_through :browser
 
     get "/", PageController, :home
+
+    get "/export", PageController, :export
+    post "/import", PageController, :import
   end
 
   # Other scopes may use custom stacks.
