@@ -21,6 +21,10 @@ defmodule XWeb.Router do
 
     get "/export", PageController, :export
     post "/import", PageController, :import
+
+    post "/s3/export", PageController, :s3_export
+
+    live "/s3/import", ImportLive, :index
   end
 
   # Other scopes may use custom stacks.

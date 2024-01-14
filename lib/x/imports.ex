@@ -105,4 +105,52 @@ defmodule X.Imports do
   for format <- ["Native", "CSVWithNames"] do
     defp ensure_supported_format(unquote(format)), do: :ok
   end
+
+  def import_s3_archive(conn, site_id, s3_key) do
+    zip_path =
+      Path.join(
+        System.tmp_dir!(),
+        "import_#{System.system_time(:millisecond)}_#{System.unique_integer([:positive])}.zip"
+      )
+
+    :ok = File.touch!(zip_path)
+
+    try do
+      fd = File.open!(zip_path, [:raw, :binary, :append])
+
+      {uri, headers, body} =
+        X.S3.build(X.S3.config(method: :get, url: "http://localhost:9000/imports", path: s3_key))
+
+      req = Finch.build(:get, uri, headers, body)
+
+      {:ok, %Finch.Response{status: 200}} =
+        Finch.stream(req, X.Finch, fd, fn
+          {:status, status}, fd ->
+            if status == 200 do
+              %Finch.Response{status: status, body: fd}
+            else
+              %Finch.Response{status: status, body: ""}
+            end
+
+          {:headers, headers}, resp ->
+            %Finch.Response{resp | headers: headers}
+
+          {:data, data}, resp ->
+            case resp do
+              %Finch.Response{status: 200, body: fd} ->
+                :ok = :file.write(fd, data)
+                resp
+
+              %Finch.Response{body: body} when is_binary(body) ->
+                %Finch.Response{resp | body: body <> data}
+            end
+        end)
+
+      :ok = File.close(fd)
+
+      X.Imports.import_archive(conn, site_id, zip_path)
+    after
+      File.rm!(zip_path)
+    end
+  end
 end

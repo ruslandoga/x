@@ -22,6 +22,11 @@ config :x, XWeb.Endpoint,
   pubsub_server: X.PubSub,
   live_view: [signing_salt: "MpSlznek"]
 
+config :x, Oban,
+  repo: X.Repo,
+  plugins: [Oban.Plugins.Pruner],
+  queues: [default: 10]
+
 # Configures the mailer
 #
 # By default it uses the "Local" adapter which stores the emails
