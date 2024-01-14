@@ -21,7 +21,7 @@ defmodule XWeb.PageController do
 
     {:ok, conn} =
       X.Exports.export_archive(
-        ch(),
+        ch("export_#{@site_id}"),
         queries,
         conn,
         fn data, conn -> {:ok, _conn} = chunk(conn, data) end,
@@ -31,9 +31,16 @@ defmodule XWeb.PageController do
     conn
   end
 
-  def import(conn, %{"file" => file}) do
-    %Plug.Upload{path: zip_path} = file
-    X.Imports.import_archive(ch(), @site_id, zip_path)
+  def s3_export(conn, _params) do
+    Oban.insert!(X.Exports.S3.new(%{"site_id" => @site_id}))
+
+    conn
+    |> put_flash(:info, "EXPORT SCHEDULED")
+    |> redirect(to: ~p"/")
+  end
+
+  def import(conn, %{"file" => %Plug.Upload{path: zip_path}}) do
+    X.Imports.import_archive(ch("import_#{@site_id}"), @site_id, zip_path)
 
     conn
     |> put_flash(:info, "IMPORT SUCCESS")
@@ -47,10 +54,13 @@ defmodule XWeb.PageController do
       :erlang.raise(class, reason, __STACKTRACE__)
   end
 
-  defp ch do
+  defp ch(session_id) do
     {:ok, conn} =
       X.Ch.Repo.config()
-      |> Keyword.put(:pool_size, 1)
+      |> Keyword.replace!(:pool_size, 1)
+      |> Keyword.update(:settings, [session_id: session_id], fn settings ->
+        Keyword.put(settings, :session_id, session_id)
+      end)
       |> Ch.start_link()
 
     conn

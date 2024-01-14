@@ -6,13 +6,13 @@ defmodule X.ExportsTest do
       {:ok, ch} =
         X.Ch.Repo.config()
         |> Keyword.replace!(:pool_size, 1)
-        |> Keyword.put(:settings, session_id: "export_import_test")
+        |> Keyword.put(:settings, session_id: "export_import_test_#{inspect(self())}")
         |> Ch.start_link()
 
       {:ok, ch: ch}
     end
 
-    test "success", %{ch: ch} do
+    test "e2e (almost)", %{ch: ch} do
       queries = X.Exports.export_queries(_site_id = 1)
       queries = Enum.map(queries, fn {name, query} -> {"#{name}.csv", query} end)
 

@@ -300,7 +300,7 @@ defmodule X.Exports do
               |> Enum.with_index()
               |> Enum.map(fn {value, idx} -> {"$#{idx}", value} end)
 
-            {name, sql, params}
+            {to_string(name), sql, params}
 
           {_name, _sql, _params} = ready ->
             ready
@@ -364,5 +364,83 @@ defmodule X.Exports do
         X.Zip.encode_central_directory([metadata_entry | :lists.reverse(entries)]),
         on_data_acc
       )
+  end
+
+  @spec export_s3_archive(
+          DBConnection.conn(),
+          queries :: [{name, sql :: iodata, params :: [term]} | {name, query :: Ecto.Query.t()}],
+          String.t(),
+          Keyword.t()
+        ) :: URI.t()
+        when name: String.t() | Atom.t()
+  def export_s3_archive(conn, queries, s3_key, opts \\ []) do
+    utc_now = opts[:utc_now] || DateTime.utc_now()
+    clean_in = opts[:clean_in] || (_24hr_in_sec = 86400)
+    cleaned_at = DateTime.add(utc_now, clean_in, :second)
+
+    download_url =
+      X.S3.signed_url(
+        X.S3.config(
+          method: :get,
+          url: "http://localhost:9000/exports",
+          path: s3_key,
+          query: %{"X-Amz-Expires" => Integer.to_string(clean_in)},
+          utc_now: utc_now
+        )
+      )
+
+    Oban.insert!(
+      X.S3.Cleaner.new(
+        %{"url" => "http://localhost:9000/exports", "path" => s3_key},
+        scheduled_at: cleaned_at
+      )
+    )
+
+    tmp_path =
+      Path.join(
+        System.tmp_dir!(),
+        "export-#{System.system_time(:millisecond)}-#{System.unique_integer([:positive])}.zip"
+      )
+
+    File.touch!(tmp_path)
+
+    try do
+      # export to tmp file
+      {:ok, fd} =
+        export_archive(
+          conn,
+          queries,
+          File.open!(tmp_path, [:raw, :binary, :append]),
+          fn data, fd -> {:ok = :file.write(fd, data), fd} end,
+          opts
+        )
+
+      :ok = File.close(fd)
+      %File.Stat{size: tmp_size} = File.stat!(tmp_path)
+
+      # upload tmp file to s3
+      {uri, headers, {:stream, _encoded_stream} = body} =
+        X.S3.build(
+          X.S3.config(
+            method: :put,
+            url: "http://localhost:9000/exports",
+            path: s3_key,
+            headers: [
+              {"content-type", "application/octet-stream"},
+              {"content-disposition", ~s|attachment; filename="export.plausible"|},
+              {"content-encoding", "aws-chunked"},
+              {"x-amz-decoded-content-length", Integer.to_string(tmp_size)}
+            ],
+            body: {:stream, File.stream!(tmp_path, _64kb = 64000)}
+          )
+        )
+
+      req = Finch.build(:put, uri, headers, body)
+      %Finch.Response{status: 200} = Finch.request!(req, X.Finch)
+
+      download_url
+    after
+      :ok = File.rm!(tmp_path)
+    end
   end
 end

@@ -1,13 +1,24 @@
-<.link
-  href={~p"/export"}
-  class="text-stone-900 border-2 rounded p-2 hover:border-green-500 transition"
->
-  Export
-</.link>
+<div class="flex space-x-4">
+  <.link href={~p"/export"}>
+    <.button>Export</.button>
+  </.link>
 
-<.simple_form :let={f} for={%{}} action={~p"/import"} multipart>
-  <.input field={f[:file]} type="file" label="Import file" accept=".plausible" required />
-  <:actions>
-    <.button>Import</.button>
-  </:actions>
-</.simple_form>
+  <.form for={%{}} action={~p"/s3/export"}>
+    <.button>Export to S3</.button>
+  </.form>
+</div>
+
+<.form
+  :let={f}
+  for={%{}}
+  action={~p"/import"}
+  multipart
+  class="my-4 rounded-md dark:bg-zinc-700 p-4"
+>
+  <.input field={f[:file]} type="file" label="File" accept=".plausible,.zip" required />
+  <.button class="mt-2">Import</.button>
+</.form>
+
+<.link href={~p"/s3/import"} class="text-blue-400 underline">
+  Import via S3
+</.link>

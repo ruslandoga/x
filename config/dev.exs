@@ -20,6 +20,8 @@ config :x, X.S3,
   access_key_id: "minioadmin",
   secret_access_key: "minioadmin",
   url: "http://localhost:9000",
+  # minio includes the port in canonical request
+  host: "localhost:9000",
   region: "us-east-1"
 
 # For development, we disable any cache and enable
